@@ -1,59 +1,196 @@
 import express from 'express';
+import authMiddleware from '../middleware/auth.js';
+import UsageEntry from '../models/UsageEntry.js';
+import Guideline from '../models/Guideline.js';
+import Resource from '../models/Resource.js';
+import User from '../models/User.js';
 
 const router = express.Router();
 
-// Mock Data
-const mockUsageData = [
-  { date: '2026-10-01', tool: 'ChatGPT', hours: 2 },
-  { date: '2026-10-02', tool: 'GitHub Copilot', hours: 4 },
-  { date: '2026-10-03', tool: 'Claude', hours: 1 },
-  { date: '2026-10-04', tool: 'ChatGPT', hours: 3 },
-  { date: '2026-10-05', tool: 'GitHub Copilot', hours: 5 },
-];
+// All routes below require a valid JWT
+router.use(authMiddleware);
 
-const mockGuidelines = [
-  { id: 1, title: 'Transparency', description: 'Always declare AI usage in assignments.' },
-  { id: 2, title: 'Privacy', description: 'Do not input sensitive or private data into public AI models.' },
-  { id: 3, title: 'Originality', description: 'Use AI to support learning, not to replace original thought.' }
-];
+/**
+ * GET /api/usage
+ * Returns the authenticated user's usage entries, optionally filtered
+ * by tool and/or date range via query parameters.
+ * FR9: data for graph. FR10: filtering support.
+ */
+router.get('/usage', async (req, res) => {
+  const { tool, from, to } = req.query;
 
-const mockResources = [
-  { id: 1, title: 'Effective Prompting Techniques', type: 'video', url: '#' },
-  { id: 2, title: 'Understanding Bias in AI', type: 'article', url: '#' },
-  { id: 3, title: 'University Policies on GenAI', type: 'document', url: '#' }
-];
+  const filter = { userId: req.user.id };
 
-const mockQuiz = {
-  questions: [
-    { question: 'Should you declare AI usage on your assignment?', expectedAnswer: 'Yes' },
-    { question: 'Is it ethical to copy-paste AI responses directly without reading?', expectedAnswer: 'No' },
-  ]
-};
+  if (tool && tool !== 'All') {
+    filter.tool = tool;
+  }
 
-// API routes
-router.post('/login', (req, res) => {
-  const { username, password } = req.body;
-  if(username && password) {
-    res.json({ token: 'mock-jwt-token', user: { username } });
-  } else {
-    res.status(401).json({ error: 'Invalid credentials' });
+  if (from || to) {
+    filter.date = {};
+    if (from) filter.date.$gte = new Date(from);
+    if (to)   filter.date.$lte = new Date(to);
+  }
+
+  try {
+    const entries = await UsageEntry.find(filter).sort({ date: 1 });
+    res.json(entries);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch usage data.' });
   }
 });
 
-router.get('/usage', (req, res) => {
-  res.json(mockUsageData);
+/**
+ * GET /api/guidelines
+ * Returns all ethical guidelines ordered by their display order.
+ * FR11: ethical guidelines.
+ */
+router.get('/guidelines', async (req, res) => {
+  try {
+    const guidelines = await Guideline.find().sort({ order: 1 });
+    res.json(guidelines);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch guidelines.' });
+  }
 });
 
-router.get('/guidelines', (req, res) => {
-  res.json(mockGuidelines);
+/**
+ * GET /api/resources
+ * Returns all educational resources and their embedded quiz questions.
+ * FR12: educational resources and quiz.
+ */
+router.get('/resources', async (req, res) => {
+  try {
+    const resources = await Resource.find();
+    res.json(resources);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch resources.' });
+  }
 });
 
-router.get('/resources', (req, res) => {
-  res.json({ resources: mockResources, quiz: mockQuiz });
+/**
+ * POST /api/quiz/submit
+ * Accepts an array of { resourceId, question, answer } objects.
+ * Evaluates each answer against the expected answers stored in the DB
+ * and returns a score. A score >= 80% is considered passing (FR12).
+ */
+router.post('/quiz/submit', async (req, res) => {
+  const { answers } = req.body; // [{ resourceId, question, answer }]
+
+  if (!Array.isArray(answers) || answers.length === 0) {
+    return res.status(400).json({ error: 'answers array is required.' });
+  }
+
+  try {
+    let correct = 0;
+    let total = answers.length;
+
+    for (const submission of answers) {
+      const resource = await Resource.findById(submission.resourceId);
+      if (!resource) continue;
+
+      const matchedQ = resource.quizQuestions.find(
+        (q) => q.question === submission.question
+      );
+
+      if (matchedQ && matchedQ.expectedAnswer.toLowerCase() === submission.answer.toLowerCase()) {
+        correct++;
+      }
+    }
+
+    const score = Math.round((correct / total) * 100);
+    const passed = score >= 80;
+
+    res.json({ score, passed, correct, total });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to evaluate quiz.' });
+  }
 });
 
-router.get('/feedback', (req, res) => {
-  res.json({ feedback: 'You have been using GitHub Copilot extensively this week. Make sure you fully understand the code it generates.' });
+/**
+ * GET /api/feedback
+ * Aggregates the user's usage data for the current week and produces
+ * a dynamic feedback string based on which tool dominates. FR13.
+ */
+router.get('/feedback', async (req, res) => {
+  try {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const entries = await UsageEntry.find({
+      userId: req.user.id,
+      date: { $gte: sevenDaysAgo },
+    });
+
+    if (entries.length === 0) {
+      return res.json({ feedback: 'No AI usage recorded in the past 7 days. Start logging your sessions to receive personalised feedback.' });
+    }
+
+    // Aggregate hours per tool
+    const totals = {};
+    for (const e of entries) {
+      totals[e.tool] = (totals[e.tool] || 0) + e.hours;
+    }
+
+    const topTool = Object.entries(totals).sort((a, b) => b[1] - a[1])[0];
+    const totalHours = Object.values(totals).reduce((s, v) => s + v, 0);
+
+    const messages = {
+      'ChatGPT':        `You used ChatGPT for ${topTool[1]} hours this week. Remember to critically evaluate its outputs and not rely on them as a primary source.`,
+      'GitHub Copilot': `GitHub Copilot was your most-used tool this week (${topTool[1]} hours). Make sure you understand every snippet it suggests before accepting it.`,
+      'Claude':         `Claude accounted for ${topTool[1]} of your ${totalHours} hours of AI use this week. Reflect on whether AI assistance is supplementing or replacing your own reasoning.`,
+    };
+
+    res.json({ feedback: messages[topTool[0]] || 'Keep tracking your AI usage to receive tailored feedback.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to generate feedback.' });
+  }
+});
+
+/**
+ * GET /api/dashboard/config
+ * Returns the authenticated user's personal dashboard configuration. FR8.
+ */
+router.get('/dashboard/config', async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('dashboardConfig username');
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+    res.json({ username: user.username, dashboardConfig: user.dashboardConfig });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch dashboard config.' });
+  }
+});
+
+/**
+ * PATCH /api/dashboard/config
+ * Updates the authenticated user's dashboard widget visibility. FR8.
+ */
+router.patch('/dashboard/config', async (req, res) => {
+  const allowed = ['showGraph', 'showGuidelines', 'showResources', 'showFeedback'];
+  const updates = {};
+
+  for (const key of allowed) {
+    if (typeof req.body[key] === 'boolean') {
+      updates[`dashboardConfig.${key}`] = req.body[key];
+    }
+  }
+
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: updates },
+      { new: true, select: 'dashboardConfig' }
+    );
+    res.json(user.dashboardConfig);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update dashboard config.' });
+  }
 });
 
 export default router;
