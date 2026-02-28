@@ -8,7 +8,7 @@ import {
   ShieldAlert, BookOpenCheck, BrainCircuit, CheckCircle2,
   LogOut, Loader2, Settings, X, Filter, Sparkles,
   ExternalLink, ChevronRight, ChevronLeft, Award, TrendingUp,
-  Clock, Zap, RotateCcw, ArrowRight,
+  Clock, Zap, RotateCcw, ArrowRight, WifiOff, AlertTriangle, Shield,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import * as api from '../services/api';
@@ -333,10 +333,79 @@ const Dashboard = () => {
     else setComplianceScore(prev => Math.min(prev, 75));
   };
 
+  // ── Consent Modal (FR25) ─────────────────────────────
+  const [consentGiven, setConsentGiven] = useState(() => !!localStorage.getItem('ai_consent'));
+  const giveConsent = () => { localStorage.setItem('ai_consent','1'); setConsentGiven(true); };
+
+  // ── Offline detection (FR30, FR34) ───────────────────
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  useEffect(() => {
+    const on  = () => setIsOnline(true);
+    const off = () => setIsOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+  }, []);
+
+  // ── Inactivity warning (FR42: logout at 15 min) ──────
+  const [idleSeconds, setIdleSeconds] = useState(0);
+  const IDLE_WARN = 13 * 60; // warn at 13 min
+  const IDLE_LOGOUT = 15 * 60; // logout at 15 min
+  useEffect(() => {
+    let timer = setInterval(() => setIdleSeconds(s => s + 1), 1000);
+    const reset = () => setIdleSeconds(0);
+    ['mousemove','keydown','click','scroll','touchstart'].forEach(e => window.addEventListener(e, reset));
+    return () => {
+      clearInterval(timer);
+      ['mousemove','keydown','click','scroll','touchstart'].forEach(e => window.removeEventListener(e, reset));
+    };
+  }, []);
+  useEffect(() => {
+    if (idleSeconds >= IDLE_LOGOUT) { logout(); navigate('/login'); }
+  }, [idleSeconds, IDLE_LOGOUT, logout, navigate]);
+  const idleWarning = idleSeconds >= IDLE_WARN;
+  const idleRemaining = Math.max(0, IDLE_LOGOUT - idleSeconds);
+
   // ── render ─────────────────────────────────────────────
 
   return (
     <div style={{ paddingBottom: '4rem' }}>
+
+      {/* ── CONSENT MODAL (FR25) ── */}
+      {!consentGiven && (
+        <div className="modal-overlay">
+          <div className="modal-content panel animate-slide-up" style={{ maxWidth: 520, padding: '2rem' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
+              <Shield size={28} color="var(--accent-color)" />
+              <h2 style={{ margin: 0 }}>Data Collection Consent</h2>
+            </div>
+            <p>Before accessing your dashboard, please confirm that you consent to the collection and processing of your AI usage data for academic integrity purposes, in accordance with the <a href="https://www.ntnu.edu/privacy" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-color)' }}>NTNU Privacy Policy</a> and GDPR.</p>
+            <ul style={{ margin: '1rem 0', paddingLeft: '1.25rem', color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.7 }}>
+              <li>Data is encrypted using AES-256</li>
+              <li>Only authorised personnel can access your records</li>
+              <li>You can export or delete your data at any time</li>
+            </ul>
+            <button className="btn" style={{ width: '100%' }} onClick={giveConsent}><CheckCircle2 size={16} /> I Consent & Continue</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── OFFLINE BANNER (FR30, FR34) ── */}
+      {!isOnline && (
+        <div style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-color)', borderRadius: 'var(--radius-md)', padding: '0.6rem 1rem', marginTop: 'var(--spacing-lg)', marginBottom: 'var(--spacing-md)', display: 'flex', alignItems: 'center', gap: '0.6rem', color: 'var(--warning-color)', fontSize: '0.88rem' }}>
+          <WifiOff size={16} />
+          <span><strong>Offline Mode</strong> — Dashboard data may be outdated. New logs are saved locally and will sync on reconnect.</span>
+        </div>
+      )}
+
+      {/* ── INACTIVITY WARNING (FR42) ── */}
+      {idleWarning && (
+        <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-color)', borderRadius: 'var(--radius-md)', padding: '0.6rem 1rem', marginTop: isOnline ? 'var(--spacing-lg)' : 0, marginBottom: 'var(--spacing-md)', display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--danger-color)', fontSize: '0.88rem' }}>
+          <AlertTriangle size={16} />
+          <span><strong>Inactivity Warning</strong> — You will be signed out in <strong>{Math.floor(idleRemaining / 60)}:{String(idleRemaining % 60).padStart(2,'0')}</strong> due to 15 minutes of inactivity.</span>
+          <button style={{ marginLeft: 'auto', background: 'var(--danger-color)', border: 'none', borderRadius: 'var(--radius-sm)', color: '#fff', padding: '0.25rem 0.75rem', cursor: 'pointer', fontSize: '0.8rem' }} onClick={() => setIdleSeconds(0)}>Stay Signed In</button>
+        </div>
+      )}
 
       {/* ── HEADER ── */}
       <header className="flex-between panel animate-slide-up" style={{ marginBottom: 'var(--spacing-lg)', marginTop: 'var(--spacing-lg)' }}>

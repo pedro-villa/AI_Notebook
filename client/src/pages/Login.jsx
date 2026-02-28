@@ -88,7 +88,11 @@ const Login = () => {
           </p>
         </div>
 
-        <p style={{ marginTop: '1.25rem', textAlign: 'center', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+        <p style={{ marginTop: '1.25rem', textAlign: 'center', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+          New student? <a href="/register" style={{ color: 'var(--accent-color)', textDecoration: 'none', fontWeight: 500 }}>Create an account</a>
+        </p>
+
+        <p style={{ marginTop: '0.5rem', textAlign: 'center', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
           AI Guidebook for Students — TDT4242 Advanced Software Engineering
         </p>
       </div>
