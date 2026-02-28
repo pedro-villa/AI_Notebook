@@ -112,39 +112,70 @@ router.post('/quiz/submit', async (req, res) => {
 
 /**
  * GET /api/feedback
- * Aggregates the user's usage data for the current week and produces
- * a dynamic feedback string based on which tool dominates. FR13.
+ * Aggregates the user's usage data for the current week vs previous week,
+ * producing dynamic, actionable feedback based on trends and dominant tools (FR13).
  */
 router.get('/feedback', async (req, res) => {
   try {
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const now = new Date();
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(now.getDate() - 7);
+    const fourteenDaysAgo = new Date(now);
+    fourteenDaysAgo.setDate(now.getDate() - 14);
 
+    // Fetch last 14 days of data to compare week-over-week
     const entries = await UsageEntry.find({
       userId: req.user.id,
-      date: { $gte: sevenDaysAgo },
+      date: { $gte: fourteenDaysAgo },
     });
 
-    if (entries.length === 0) {
+    const currentWeekEntries = entries.filter(e => e.date >= sevenDaysAgo);
+    const previousWeekEntries = entries.filter(e => e.date < sevenDaysAgo);
+
+    if (currentWeekEntries.length === 0) {
       return res.json({ feedback: 'No AI usage recorded in the past 7 days. Start logging your sessions to receive personalised feedback.' });
     }
 
-    // Aggregate hours per tool
-    const totals = {};
-    for (const e of entries) {
-      totals[e.tool] = (totals[e.tool] || 0) + e.hours;
+    // Aggregate hours for current week
+    const currentTotals = {};
+    for (const e of currentWeekEntries) {
+      currentTotals[e.tool] = (currentTotals[e.tool] || 0) + e.hours;
     }
 
-    const topTool = Object.entries(totals).sort((a, b) => b[1] - a[1])[0];
-    const totalHours = Object.values(totals).reduce((s, v) => s + v, 0);
+    const previousTotalHours = previousWeekEntries.reduce((sum, e) => sum + e.hours, 0);
+    const currentTotalHours = Object.values(currentTotals).reduce((sum, v) => sum + v, 0);
+    const topTool = Object.entries(currentTotals).sort((a, b) => b[1] - a[1])[0];
 
-    const messages = {
-      'ChatGPT':        `You used ChatGPT for ${topTool[1]} hours this week. Remember to critically evaluate its outputs and not rely on them as a primary source.`,
-      'GitHub Copilot': `GitHub Copilot was your most-used tool this week (${topTool[1]} hours). Make sure you understand every snippet it suggests before accepting it.`,
-      'Claude':         `Claude accounted for ${topTool[1]} of your ${totalHours} hours of AI use this week. Reflect on whether AI assistance is supplementing or replacing your own reasoning.`,
+    // 1. Build trend insight
+    let feedbackStr = `You used AI for ${currentTotalHours.toFixed(1)} hours this week`;
+    if (previousTotalHours > 0) {
+      const diff = currentTotalHours - previousTotalHours;
+      if (diff > 0) {
+        feedbackStr += ` (up ${diff.toFixed(1)} hrs from last week). `;
+      } else if (diff < 0) {
+        feedbackStr += ` (down ${Math.abs(diff).toFixed(1)} hrs from last week). `;
+      } else {
+        feedbackStr += `, the same amount as last week. `;
+      }
+    } else {
+      feedbackStr += `. `;
+    }
+
+    // 2. High usage warning
+    if (currentTotalHours >= 20) {
+      feedbackStr += `Warning: That's a very high amount of AI usage. Make sure you are using these tools to support your learning, not as a replacement for your own cognitive effort. `;
+    }
+
+    // 3. Tool-specific tips
+    const toolTips = {
+      'ChatGPT': `Since ChatGPT was your primary tool (${topTool[1].toFixed(1)} hrs), remember to critically evaluate its textual outputs for hallucinations.`,
+      'GitHub Copilot': `GitHub Copilot drove most of your usage (${topTool[1].toFixed(1)} hrs). Ensure you fully understand every snippet before integrating it.`,
+      'Claude': `Claude was your most-used tool (${topTool[1].toFixed(1)} hrs). Reflect on whether its reasoning is supplementing or bypassing your own analysis.`
     };
 
-    res.json({ feedback: messages[topTool[0]] || 'Keep tracking your AI usage to receive tailored feedback.' });
+    feedbackStr += toolTips[topTool[0]] || '';
+
+    res.json({ feedback: feedbackStr.trim() });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to generate feedback.' });

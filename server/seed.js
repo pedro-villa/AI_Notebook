@@ -1,11 +1,10 @@
 /**
  * seed.js — Run with: npm run seed
  *
- * Clears the database and populates it with:
  *   - 2 mock users (alice & bob) with hashed passwords
  *   - Ethical guidelines
  *   - Educational resources with embedded quiz questions
- *   - 30 days of UsageEntry records linked to each user
+ *   - 60 days of UsageEntry records linked to each user
  */
 import 'dotenv/config';
 import mongoose from 'mongoose';
@@ -46,6 +45,8 @@ const guidelineData = [
   { order: 3, category: 'Integrity',     title: 'Maintain Originality', description: 'Use AI to support your thinking, not to replace it. Your conclusions must be your own.' },
   { order: 4, category: 'Verification',  title: 'Verify AI Outputs',   description: 'AI systems can hallucinate. Cross-check every factual claim against authoritative sources.' },
   { order: 5, category: 'Attribution',   title: 'Cite AI Tools',       description: 'Treat AI-generated content like any other source and provide appropriate attribution.' },
+  { order: 6, category: 'Security',      title: 'Maintain Code Security', description: 'Do not upload proprietary code, API keys, or sensitive student records to cloud AI providers.' },
+  { order: 7, category: 'Awareness',     title: 'Recognise AI Bias',   description: 'Understand that LLMs reflect biases present in their training data. Always review with critical reasoning.' },
 ];
 
 const resourceData = [
@@ -74,6 +75,15 @@ const resourceData = [
     quizQuestions: [
       { question: 'Must you declare AI usage in your assignments according to NTNU rules?', expectedAnswer: 'Yes' },
       { question: 'Is submitting AI-generated text as your own work acceptable?', expectedAnswer: 'No' },
+    ],
+  },
+  {
+    title: 'Code Plagiarism and GitHub Copilot',
+    type: 'article',
+    url: 'https://example.com/copilot-plagiarism',
+    quizQuestions: [
+      { question: 'Can GitHub Copilot suggest code identical to publicly licensed code?', expectedAnswer: 'Yes' },
+      { question: 'Are you exempt from copyright compliance when an AI writes the code?', expectedAnswer: 'No' },
     ],
   },
 ];
@@ -123,9 +133,9 @@ async function seed() {
   });
 
   // ----- Create usage entries -----
-  console.log('📊 Seeding usage entries (30 days × 2 users)…');
-  const aliceEntries = buildUsageFor(alice._id, 30);
-  const bobEntries   = buildUsageFor(bob._id, 30);
+  console.log('📊 Seeding usage entries (60 days × 2 users)…');
+  const aliceEntries = buildUsageFor(alice._id, 60);
+  const bobEntries   = buildUsageFor(bob._id, 60);
   await UsageEntry.insertMany([...aliceEntries, ...bobEntries]);
 
   console.log(`\n✅ Seed complete!`);
