@@ -20,6 +20,23 @@ const randomBetween = (min, max) =>
   Math.round((Math.random() * (max - min) + min) * 10) / 10;
 
 const tools = ['ChatGPT', 'GitHub Copilot', 'Claude'];
+const seedTasks = [
+  'Brainstorm assignment outline',
+  'Draft code documentation',
+  'Review and refactor function',
+  'Summarize research article',
+  'Generate test case ideas',
+  'Explain algorithm complexity',
+];
+
+const seedOutputs = [
+  'Received structured suggestions and selected the most relevant parts.',
+  'Generated a first draft that was manually reviewed and edited before submission.',
+  'Got debugging hints and validated each proposed fix against project requirements.',
+  'Produced a concise summary and cross-checked key claims with trusted sources.',
+  'Created candidate test scenarios and adapted them to the final implementation.',
+  'Obtained explanation examples and rewrote them in my own wording.',
+];
 
 function buildUsageFor(userId, days = 30) {
   const entries = [];
@@ -32,7 +49,9 @@ function buildUsageFor(userId, days = 30) {
     const usedTools = [...tools].sort(() => Math.random() - 0.5).slice(0, numEntries);
 
     for (const tool of usedTools) {
-      entries.push({ userId, date, tool, hours: randomBetween(0.5, 5) });
+      const task = seedTasks[Math.floor(Math.random() * seedTasks.length)];
+      const aiOutput = seedOutputs[Math.floor(Math.random() * seedOutputs.length)];
+      entries.push({ userId, date, tool, hours: randomBetween(0.5, 5), task, aiOutput });
     }
   }
   return entries;

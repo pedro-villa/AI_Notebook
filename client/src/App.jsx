@@ -40,10 +40,10 @@ function App() {
               <ProtectedRoute><WithLayout><HelpCenter /></WithLayout></ProtectedRoute>
             } />
             <Route path="/admin" element={
-              <ProtectedRoute><WithLayout><AdminPanel /></WithLayout></ProtectedRoute>
+              <ProtectedRoute requiredRole="admin"><WithLayout><AdminPanel /></WithLayout></ProtectedRoute>
             } />
             <Route path="/system" element={
-              <ProtectedRoute><WithLayout><SystemStatus /></WithLayout></ProtectedRoute>
+              <ProtectedRoute requiredRole="admin"><WithLayout><SystemStatus /></WithLayout></ProtectedRoute>
             } />
 
             {/* Fallback */}

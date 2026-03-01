@@ -17,6 +17,10 @@ router.post('/register', async (req, res) => {
     return res.status(400).json({ error: 'username, email, and password are required.' });
   }
 
+  if (!email.endsWith('@ntnu.no') && !email.endsWith('.ntnu.no')) {
+    return res.status(400).json({ error: 'Registration requires a valid NTNU university email address.' });
+  }
+
   try {
     const exists = await User.findOne({ $or: [{ username }, { email }] });
     if (exists) {

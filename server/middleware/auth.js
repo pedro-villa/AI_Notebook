@@ -23,4 +23,16 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
+export const requireRole = (...allowedRoles) => (req, res, next) => {
+  if (!req.user?.role) {
+    return res.status(403).json({ error: 'Forbidden: user role missing.' });
+  }
+
+  if (!allowedRoles.includes(req.user.role)) {
+    return res.status(403).json({ error: 'Forbidden: insufficient permissions.' });
+  }
+
+  return next();
+};
+
 export default authMiddleware;

@@ -1,5 +1,5 @@
 import express from 'express';
-import authMiddleware from '../middleware/auth.js';
+import authMiddleware, { requireRole } from '../middleware/auth.js';
 import UsageEntry from '../models/UsageEntry.js';
 import Guideline from '../models/Guideline.js';
 import Resource from '../models/Resource.js';
@@ -9,6 +9,51 @@ const router = express.Router();
 
 // All routes below require a valid JWT
 router.use(authMiddleware);
+
+/**
+ * POST /api/logs
+ * Creates a manual AI usage log for the authenticated user.
+ * FR4: manual log creation, FR5: captures tool, purpose/task, output and time.
+ */
+router.post('/logs', async (req, res) => {
+  const {
+    tool,
+    task,
+    aiOutput,
+    hours,
+    subject = '',
+    assignmentId = '',
+    note = '',
+    date,
+  } = req.body;
+
+  if (!tool || !task || !aiOutput || typeof hours !== 'number') {
+    return res.status(400).json({ error: 'tool, task, aiOutput and numeric hours are required.' });
+  }
+
+  if (hours <= 0 || hours > 24) {
+    return res.status(400).json({ error: 'hours must be between 0 and 24.' });
+  }
+
+  try {
+    const entry = await UsageEntry.create({
+      userId: req.user.id,
+      tool,
+      task,
+      aiOutput,
+      hours,
+      subject,
+      assignmentId,
+      note,
+      date: date ? new Date(date) : new Date(),
+    });
+
+    res.status(201).json(entry);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to create usage log.' });
+  }
+});
 
 /**
  * GET /api/usage
@@ -221,6 +266,28 @@ router.patch('/dashboard/config', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to update dashboard config.' });
+  }
+});
+
+/**
+ * GET /api/admin/system-status
+ * Returns lightweight system counters for admin users only. FR43.
+ */
+router.get('/admin/system-status', requireRole('admin'), async (req, res) => {
+  try {
+    const [totalUsers, totalUsageEntries] = await Promise.all([
+      User.countDocuments(),
+      UsageEntry.countDocuments(),
+    ]);
+
+    res.json({
+      totalUsers,
+      totalUsageEntries,
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch system status.' });
   }
 });
 

@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   BrainCircuit, LayoutDashboard, FilePlus, FileText,
   HelpCircle, ShieldCheck, Activity, LogOut, Menu, X,
-  ChevronRight,
+  ChevronRight, AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -22,7 +22,7 @@ const ADMIN_ITEMS = [
 export default function AppLayout({ children }) {
   const location  = useLocation();
   const navigate  = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, idleWarning, idleRemaining, resetInactivity } = useAuth();
   const [open, setOpen] = useState(false);
 
   const handleLogout = () => { logout(); navigate('/login'); };
@@ -76,15 +76,16 @@ export default function AppLayout({ children }) {
       </div>
 
       {/* Admin nav */}
-      <div style={{ marginBottom: '0.5rem' }}>
-        <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '0 0.75rem', marginBottom: '0.4rem', marginTop: '1rem' }}>
-          Administration
-          {!isAdmin && <span style={{ marginLeft: '0.4rem', fontSize: '0.62rem', background: 'rgba(255,255,255,0.07)', padding: '1px 5px', borderRadius: '4px' }}>Admin</span>}
+      {isAdmin && (
+        <div style={{ marginBottom: '0.5rem' }}>
+          <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '0 0.75rem', marginBottom: '0.4rem', marginTop: '1rem' }}>
+            Administration
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            {ADMIN_ITEMS.map(item => <NavLink key={item.path} item={item} />)}
+          </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          {ADMIN_ITEMS.map(item => <NavLink key={item.path} item={item} />)}
-        </div>
-      </div>
+      )}
 
       {/* Spacer */}
       <div style={{ flex: 1 }} />
@@ -134,6 +135,13 @@ export default function AppLayout({ children }) {
 
       {/* Main content */}
       <main style={{ flex: 1, marginLeft: 220, minWidth: 0, padding: '0 1.5rem 3rem', boxSizing: 'border-box' }}>
+        {idleWarning && (
+          <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-color)', borderRadius: 'var(--radius-md)', padding: '0.6rem 1rem', marginTop: 'var(--spacing-lg)', marginBottom: 'var(--spacing-md)', display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--danger-color)', fontSize: '0.88rem' }}>
+            <AlertTriangle size={16} />
+            <span><strong>Inactivity Warning</strong> — You will be signed out in <strong>{Math.floor(idleRemaining / 60)}:{String(idleRemaining % 60).padStart(2, '0')}</strong> due to 15 minutes of inactivity.</span>
+            <button style={{ marginLeft: 'auto', background: 'var(--danger-color)', border: 'none', borderRadius: 'var(--radius-sm)', color: '#fff', padding: '0.25rem 0.75rem', cursor: 'pointer', fontSize: '0.8rem' }} onClick={resetInactivity}>Stay Signed In</button>
+          </div>
+        )}
         {children}
       </main>
     </div>

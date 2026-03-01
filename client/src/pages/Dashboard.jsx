@@ -8,38 +8,14 @@ import {
   ShieldAlert, BookOpenCheck, BrainCircuit, CheckCircle2,
   LogOut, Loader2, Settings, X, Filter, Sparkles,
   ExternalLink, ChevronRight, ChevronLeft, Award, TrendingUp,
-  Clock, Zap, RotateCcw, ArrowRight, WifiOff, AlertTriangle, Shield,
+  Clock, Zap, RotateCcw, ArrowRight, WifiOff, Shield,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import * as api from '../services/api';
+import { pivotUsageData, computeStats } from '../utils/dashboard';
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
-/**
- * Pivot flat usage entries into Recharts shape:
- *   { date: '01 Jan', ChatGPT: 2, 'GitHub Copilot': 4, Claude: 1 }
- * Sorted chronologically. connectNulls on chart handles missing days.
- */
-function pivotUsageData(entries) {
-  const map = {};
-  for (const e of entries) {
-    const dateStr = new Date(e.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-    if (!map[dateStr]) map[dateStr] = { date: dateStr, _raw: new Date(e.date) };
-    map[dateStr][e.tool] = (map[dateStr][e.tool] || 0) + e.hours;
-  }
-  return Object.values(map).sort((a, b) => a._raw - b._raw);
-}
-
-function computeStats(rawEntries) {
-  if (!rawEntries || rawEntries.length === 0)
-    return { total: 0, avg: 0, topTool: '—', days: 0 };
-  const total = rawEntries.reduce((s, e) => s + e.hours, 0);
-  const days = new Set(rawEntries.map(e => new Date(e.date).toDateString())).size;
-  const toolTotals = {};
-  for (const e of rawEntries) toolTotals[e.tool] = (toolTotals[e.tool] || 0) + e.hours;
-  const topTool = Object.entries(toolTotals).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '—';
-  return { total: total.toFixed(1), avg: (total / days).toFixed(1), topTool, days };
-}
 
 // Circular SVG progress ring
 const RingProgress = ({ pct, size = 80, stroke = 7, color = 'var(--accent-color)', label, sub }) => {
@@ -276,9 +252,20 @@ const Dashboard = () => {
   // Compliance score: 0‑100, driven by whether quiz was passed
   const [complianceScore, setComplianceScore] = useState(60);
 
+  // ── Consent Modal (FR25) ─────────────────────────────
+  const [consentGiven, setConsentGiven] = useState(() => !!localStorage.getItem('ai_consent'));
+  const giveConsent = () => { localStorage.setItem('ai_consent','1'); setConsentGiven(true); };
+
   // ── fetching ────────────────────────────────────────────
 
   const fetchUsage = useCallback(async () => {
+    if (!consentGiven) {
+      setRawEntries([]);
+      setUsageData([]);
+      setLoadingUsage(false);
+      return;
+    }
+
     setLoadingUsage(true);
     try {
       const params = {};
@@ -293,11 +280,25 @@ const Dashboard = () => {
     } finally {
       setLoadingUsage(false);
     }
-  }, [filterTool, filterFrom, filterTo]);
+  }, [filterTool, filterFrom, filterTo, consentGiven]);
 
   useEffect(() => { fetchUsage(); }, [fetchUsage]);
 
   useEffect(() => {
+    if (!consentGiven) {
+      setLoadingGuidelines(false);
+      setLoadingResources(false);
+      setLoadingFeedback(false);
+      setGuidelines([]);
+      setResources([]);
+      setFeedback('');
+      return;
+    }
+
+    setLoadingGuidelines(true);
+    setLoadingResources(true);
+    setLoadingFeedback(true);
+
     api.getGuidelines()
       .then(setGuidelines)
       .catch(console.error)
@@ -316,7 +317,7 @@ const Dashboard = () => {
     api.getDashboardConfig()
       .then(d => setDashboardConfig(d.dashboardConfig))
       .catch(console.error);
-  }, []);
+  }, [consentGiven]);
 
   // ── computed ───────────────────────────────────────────
 
@@ -333,10 +334,6 @@ const Dashboard = () => {
     else setComplianceScore(prev => Math.min(prev, 75));
   };
 
-  // ── Consent Modal (FR25) ─────────────────────────────
-  const [consentGiven, setConsentGiven] = useState(() => !!localStorage.getItem('ai_consent'));
-  const giveConsent = () => { localStorage.setItem('ai_consent','1'); setConsentGiven(true); };
-
   // ── Offline detection (FR30, FR34) ───────────────────
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   useEffect(() => {
@@ -346,25 +343,6 @@ const Dashboard = () => {
     window.addEventListener('offline', off);
     return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
   }, []);
-
-  // ── Inactivity warning (FR42: logout at 15 min) ──────
-  const [idleSeconds, setIdleSeconds] = useState(0);
-  const IDLE_WARN = 13 * 60; // warn at 13 min
-  const IDLE_LOGOUT = 15 * 60; // logout at 15 min
-  useEffect(() => {
-    let timer = setInterval(() => setIdleSeconds(s => s + 1), 1000);
-    const reset = () => setIdleSeconds(0);
-    ['mousemove','keydown','click','scroll','touchstart'].forEach(e => window.addEventListener(e, reset));
-    return () => {
-      clearInterval(timer);
-      ['mousemove','keydown','click','scroll','touchstart'].forEach(e => window.removeEventListener(e, reset));
-    };
-  }, []);
-  useEffect(() => {
-    if (idleSeconds >= IDLE_LOGOUT) { logout(); navigate('/login'); }
-  }, [idleSeconds, IDLE_LOGOUT, logout, navigate]);
-  const idleWarning = idleSeconds >= IDLE_WARN;
-  const idleRemaining = Math.max(0, IDLE_LOGOUT - idleSeconds);
 
   // ── render ─────────────────────────────────────────────
 
@@ -395,15 +373,6 @@ const Dashboard = () => {
         <div style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-color)', borderRadius: 'var(--radius-md)', padding: '0.6rem 1rem', marginTop: 'var(--spacing-lg)', marginBottom: 'var(--spacing-md)', display: 'flex', alignItems: 'center', gap: '0.6rem', color: 'var(--warning-color)', fontSize: '0.88rem' }}>
           <WifiOff size={16} />
           <span><strong>Offline Mode</strong> — Dashboard data may be outdated. New logs are saved locally and will sync on reconnect.</span>
-        </div>
-      )}
-
-      {/* ── INACTIVITY WARNING (FR42) ── */}
-      {idleWarning && (
-        <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-color)', borderRadius: 'var(--radius-md)', padding: '0.6rem 1rem', marginTop: isOnline ? 'var(--spacing-lg)' : 0, marginBottom: 'var(--spacing-md)', display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--danger-color)', fontSize: '0.88rem' }}>
-          <AlertTriangle size={16} />
-          <span><strong>Inactivity Warning</strong> — You will be signed out in <strong>{Math.floor(idleRemaining / 60)}:{String(idleRemaining % 60).padStart(2,'0')}</strong> due to 15 minutes of inactivity.</span>
-          <button style={{ marginLeft: 'auto', background: 'var(--danger-color)', border: 'none', borderRadius: 'var(--radius-sm)', color: '#fff', padding: '0.25rem 0.75rem', cursor: 'pointer', fontSize: '0.8rem' }} onClick={() => setIdleSeconds(0)}>Stay Signed In</button>
         </div>
       )}
 

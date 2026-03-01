@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BrainCircuit, User, Lock, Mail, ArrowRight, ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import * as api from '../services/api';
 
 const Toast = ({ msg, type }) => (
   <div style={{
@@ -45,15 +46,26 @@ export default function Register() {
     setTimeout(() => { setLoading(false); setStep(2); }, 900);
   };
 
-  const handleMFA = (e) => {
+  const handleMFA = async (e) => {
     e.preventDefault();
     if (mfaCode !== MOCK_CODE) return showToast('Invalid code. Try: ' + MOCK_CODE, 'error');
+
     setLoading(true);
-    setTimeout(() => {
+
+    try {
+      await api.register({
+        username,
+        email,
+        password,
+      });
+
       setLoading(false);
       showToast('Account created! Redirecting…');
       setTimeout(() => navigate('/login'), 1800);
-    }, 700);
+    } catch (err) {
+      setLoading(false);
+      showToast(err.message || 'Registration failed. Please try again.', 'error');
+    }
   };
 
   return (

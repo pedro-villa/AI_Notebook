@@ -7,9 +7,18 @@ import { useAuth } from '../context/AuthContext';
  * If there is no logged-in user, redirects to /login.
  * This prevents unauthenticated users from accessing the dashboard URL directly.
  */
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children, requiredRole }) => {
   const { user } = useAuth();
-  return user ? children : <Navigate to="/login" replace />;
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (requiredRole && user.role !== requiredRole) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
 };
 
 export default ProtectedRoute;

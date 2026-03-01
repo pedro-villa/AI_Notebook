@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FilePlus, Info, AlertTriangle, CheckCircle2, Wifi, WifiOff, ChevronDown, ChevronUp } from 'lucide-react';
+import * as api from '../services/api';
 
 const TOOLS = ['ChatGPT', 'GitHub Copilot', 'Claude', 'Gemini', 'Other'];
 const TASKS = ['Writing / Drafting', 'Code Generation', 'Research', 'Data Analysis', 'Brainstorming', 'Translation', 'Summarisation', 'Other'];
@@ -58,21 +59,37 @@ export default function LogUsage() {
   const policyLimit = tool ? POLICY_VIOLATIONS[tool] : null;
   const overLimit = policyLimit && hours > policyLimit;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!tool || !task) return showToast('Please select a tool and task type.', 'error');
+    if (!aiOutput.trim()) return showToast('Please include the AI output summary.', 'error');
+    if (!isOnline) return showToast('You are offline. Reconnect to submit this entry.', 'warn');
+
     setLoading(true);
-    setTimeout(() => {
+
+    try {
+      await api.createUsageLog({
+        tool,
+        task,
+        subject,
+        assignmentId: assignId,
+        hours,
+        aiOutput,
+        note: notes,
+      });
+
       setLoading(false);
       setSubmitted(true);
-      if (!isOnline) {
-        showToast('⚠ Offline — entry saved locally and will sync when connected.', 'warn');
-      } else if (overLimit) {
+
+      if (overLimit) {
         showToast(`⚠ Compliance notice: ${hours}h exceeds the ${policyLimit}h guideline for ${tool}. Logged and flagged for review.`, 'warn');
       } else {
         showToast('✓ AI usage log submitted successfully!');
       }
-    }, 900);
+    } catch (err) {
+      setLoading(false);
+      showToast(err.message || 'Failed to submit AI usage log.', 'error');
+    }
   };
 
   const handleNew = () => {
@@ -85,7 +102,7 @@ export default function LogUsage() {
       <div className="panel" style={{ maxWidth: 520, margin: '4rem auto', textAlign: 'center', padding: '2.5rem' }}>
         <CheckCircle2 size={52} color="var(--success-color)" style={{ marginBottom: '1rem' }} />
         <h2>Log Submitted!</h2>
-        <p>Your AI usage entry for <strong style={{ color: '#fff' }}>{tool}</strong> has been recorded {!isOnline ? 'locally (pending sync)' : 'successfully'}.</p>
+        <p>Your AI usage entry for <strong style={{ color: '#fff' }}>{tool}</strong> has been recorded successfully.</p>
         {overLimit && (
           <div style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-color)', borderRadius: 'var(--radius-md)', padding: '0.75rem', marginTop: '1rem', color: 'var(--warning-color)', fontSize: '0.85rem' }}>
             <strong>Compliance Notice:</strong> Your declared {hours}h exceeds NTNU's guideline of {policyLimit}h for {tool}. Your instructor has been notified.
@@ -103,7 +120,7 @@ export default function LogUsage() {
       {/* Offline banner */}
       {!isOnline && (
         <div style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-color)', borderRadius: 'var(--radius-md)', padding: '0.65rem 1rem', marginBottom: 'var(--spacing-lg)', display: 'flex', alignItems: 'center', gap: '0.6rem', color: 'var(--warning-color)', fontSize: '0.88rem' }}>
-          <WifiOff size={16} /> <strong>Offline Mode</strong> — Entries will be saved locally and synced when reconnected.
+          <WifiOff size={16} /> <strong>Offline Mode</strong> — Reconnect to submit usage entries.
         </div>
       )}
 

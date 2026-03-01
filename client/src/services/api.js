@@ -28,6 +28,12 @@ async function request(path, options = {}) {
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────
+export const register = (payload) =>
+  request('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
 export const login = (username, password) =>
   request('/api/auth/login', {
     method: 'POST',
@@ -50,6 +56,12 @@ export const getUsage = (params = {}) => {
   return request(`/api/usage${qs ? '?' + qs : ''}`);
 };
 
+export const createUsageLog = (payload) =>
+  request('/api/logs', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
 // ── Guidelines ────────────────────────────────────────────────────────────
 export const getGuidelines = () => request('/api/guidelines');
 
@@ -63,3 +75,6 @@ export const submitQuiz = (answers) =>
 
 // ── Feedback ──────────────────────────────────────────────────────────────
 export const getFeedback = () => request('/api/feedback');
+
+// ── Admin ─────────────────────────────────────────────────────────────────
+export const getAdminSystemStatus = () => request('/api/admin/system-status');
