@@ -21,7 +21,6 @@ This matrix maps the explicitly selected Functional Requirements (FRs) and Non-F
 | **NFR6** | 95% UI Consistency Score. | `index.css`, `AppLayout.jsx`, shared panel/grid classes | N/A | Verified via explicit checklist and manual scoring rubric (below). |
 | **NFR7** | Visual hierarchy (size, colour, spacing). | Custom CSS variables (`var(--accent-color)`, etc.) | N/A | Verified via design review. |
 | **NFR8** | Predictable placement across pages. | `AppLayout.jsx` (Sidebar navigation) | N/A | Verified via component routing structure. |
-| **NFR18** | Data in transit encrypted via TLS. | Deployment config (reverse proxy / hosting TLS termination) | Production HTTPS enforcement (environment-dependent) | Deployment-dependent; local development uses HTTP. |
 
 ## Validation Implementation
 
