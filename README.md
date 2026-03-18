@@ -9,14 +9,6 @@ In order to support the isolated implementation of the required features (Person
 
 > **Note on the Authentication System**: The login/auth boundary is not a mock-up. The project uses JWT-based authentication for protected routes (FR40), token-driven backend authorization, 15-minute inactivity handling (FR42), and end-to-end manual registration (FR38) via `POST /api/auth/register` with NTNU email validation.
 
-## NFR6 Evidence (UI Consistency)
-
-The 95% UI consistency requirement is evaluated using a manual checklist and scoring rubric documented in [Traceability_Matrix.md](Traceability_Matrix.md). The score is computed as:
-
-`UI Consistency Score = (Passed Checks / Total Checks) × 100`
-
-Acceptance criterion: score must be **>= 95%** across representative desktop and mobile views.
-
 ## Quick start
 
 1. Follow the setup guide in `AI_Guidebook_Setup.md` (includes Docker/local/Atlas MongoDB setup).
