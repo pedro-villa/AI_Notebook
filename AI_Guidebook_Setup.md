@@ -1,105 +1,154 @@
-# AI Guidebook for Students
+# AI Guidebook Setup
 
-This repository contains the setup for the AI Guidebook web application. It includes a `/server` (Node.js/Express) and `/client` (React + Vite) directory.
+This is the easiest way to get the project running locally.
 
-## Getting Started
+## 1. Prerequisites
 
-**Prerequisite:** You must have [Node.js](https://nodejs.org/) installed to run this application.
+Install the following:
 
-### 1) Configure MongoDB (required)
+- Node.js 20+ and npm
+- MongoDB via one of:
+  - Docker Desktop (recommended)
+  - Local MongoDB Community Server
+  - MongoDB Atlas
 
-The backend uses MongoDB through the `MONGO_URI` variable in `server/.env`.
+Optional but recommended:
 
-#### Option A — Docker MongoDB (recommended for development)
+- Git
+- Postman or a similar API client
 
-1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) and make sure Docker is running.
-2. From the project root (`AI_Notebook`), start MongoDB:
-	- `docker compose up -d`
-3. Verify container is running:
-	- `docker ps`
-	- Look for container name `ai_notebook_mongodb`.
-4. In this project, go to `server` and create your env file from the template:
-	- `Copy-Item .env.example .env`
-5. Ensure `server/.env` contains:
-	- `MONGO_URI=mongodb://127.0.0.1:27017/ai_guidebook`
-6. Optional maintenance commands:
-	- Stop DB: `docker compose stop`
-	- Restart DB: `docker compose start`
-	- Reset DB data (destroys local DB volume): `docker compose down -v`
+## 2. Environment Configuration
 
-#### Option B — Local MongoDB Community Server
+### 2.1 Server environment file
 
-1. Install MongoDB Community Server from [mongodb.com](https://www.mongodb.com/try/download/community).
-2. Keep the default settings during installation (including running MongoDB as a Windows service).
-3. Confirm MongoDB is running:
-	- Open PowerShell and run: `Get-Service -Name MongoDB`
-	- If status is not `Running`, start it with: `Start-Service -Name MongoDB`
-4. In this project, go to `server` and create your env file from the template:
-	- `Copy-Item .env.example .env`
-5. Ensure `server/.env` contains:
-	- `MONGO_URI=mongodb://127.0.0.1:27017/ai_guidebook`
+Create `server/.env` from template:
 
-#### Option C — MongoDB Atlas (cloud)
+- Windows PowerShell: `Copy-Item server/.env.example server/.env`
+- macOS/Linux shell: `cp server/.env.example server/.env`
 
-1. Create a free cluster at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas/register).
-2. Create a database user (username/password).
-3. Add your current IP address in **Network Access**.
-4. Open **Connect → Drivers** and copy your connection string.
-5. In `server/.env`, set `MONGO_URI` to the Atlas URI (replace `<username>`, `<password>`, and db name).
-	- Example format: `mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/ai_guidebook?retryWrites=true&w=majority`
-
-### 2) Configure backend environment variables
-
-In `server/.env`, set at least:
+Minimum required variables in `server/.env`:
 
 - `PORT=5000`
-- `MONGO_URI=...`
-- `JWT_SECRET=...` (any long random string for local development)
+- `MONGO_URI=<your_mongodb_uri>`
+- `JWT_SECRET=<long_random_secret>`
 
-### Running the Backend
+### 2.2 Client environment file
 
-1. Navigate to the `/server` directory: `cd server`
-2. Install dependencies: `npm install`
-3. Start the server: `npm run dev`
-4. You should see: `✅ Connected to MongoDB`
+Create `client/.env` from template:
 
-### Optional: Seed test data
+- Windows PowerShell: `Copy-Item client/.env.example client/.env`
+- macOS/Linux shell: `cp client/.env.example client/.env`
 
-From `/server`, run:
+Default local value:
+
+- `VITE_API_URL=http://localhost:5000`
+
+## 3. MongoDB Setup Options
+
+Choose exactly one option.
+
+### Option A: Docker Compose (recommended)
+
+From repository root:
+
+1. Start services: `docker compose up -d`
+2. Verify running: `docker ps`
+3. Use this server URI in `server/.env`:
+   - `MONGO_URI=mongodb://root:example@localhost:27017/ai_guidebook?authSource=admin`
+
+Notes:
+
+- Docker Compose in this repository enables MongoDB authentication.
+- Optional Mongo Express UI is exposed on `http://localhost:8081`.
+
+Maintenance commands:
+
+- Stop containers: `docker compose stop`
+- Restart containers: `docker compose start`
+- Remove containers and volumes (destructive): `docker compose down -v`
+
+### Option B: Local MongoDB Community Server
+
+1. Install MongoDB Community Server.
+2. Ensure local MongoDB service is running.
+3. Use this URI in `server/.env`:
+   - `MONGO_URI=mongodb://127.0.0.1:27017/ai_guidebook`
+
+### Option C: MongoDB Atlas
+
+1. Create Atlas cluster and DB user.
+2. Allow your IP in Atlas network access.
+3. Set `MONGO_URI` in `server/.env` to your Atlas connection string.
+
+Example:
+
+- `mongodb+srv://<username>:<password>@<cluster>/<db>?retryWrites=true&w=majority`
+
+## 4. Install Dependencies
+
+From repository root:
+
+1. Install root scripts: `npm install`
+2. Install client dependencies: `npm --prefix client install`
+3. Install server dependencies: `npm --prefix server install`
+
+## 5. Run the System
+
+Use two terminals.
+
+Terminal 1 (backend):
+
+1. `cd server`
+2. `npm run dev`
+
+Terminal 2 (frontend):
+
+1. `cd client`
+2. `npm run dev`
+
+Default URLs:
+
+- Frontend: `http://localhost:5173`
+- Backend health endpoint: `http://localhost:5000/health`
+
+## 6. Optional Seed Data
+
+From `server/`:
 
 - `npm run seed`
 
-This creates mock users (`alice`, `bob`) and sample usage/guideline/resource data.
+Seeded users:
 
-### Running the Frontend
+- Username: `alice`, Password: `password123`
+- Username: `bob`, Password: `password123`
 
-1. Navigate to the `/client` directory: `cd client`
-2. Install dependencies: `npm install`
-3. Start the Vite dev server: `npm run dev`
+Both users are `student` role. If you want to test admin-only routes, register a user with `role: "admin"`.
 
-### Quick verification checklist
+## 7. Verification Checklist
 
-1. Backend logs show `✅ Connected to MongoDB`.
-2. `http://localhost:5000/health` returns `{ "status": "ok" }`.
-3. Frontend loads from Vite and login works with seeded users (if you ran seed).
+Run these checks after setup:
 
----
+1. Backend startup log contains `Connected to MongoDB`.
+2. `GET /health` returns `{ "status": "ok" }`.
+3. Frontend loads and can reach backend API.
+4. `npm run test` from repository root completes successfully.
 
-## Architectural & Design Explanations
+## 8. Automated Test Commands
 
-### Backend Setup (`/server`)
-**Why Node.js/Express and MongoDB?**
-Express is lightweight, scalable, and highly unopinionated, making it extremely easy to set up our exact mock route structure (`/usage`, `/guidelines`, `/resources`) rapidly. MongoDB was chosen for the database because it excels at storing unstructured or schema-flexible data like "Usage Data" and varying "Educational Resources". Our mock implementation uses an in-memory fallback since an actual MongoDB connection URI isn't provided yet.
+From repository root:
 
-### Frontend Setup (`/client`)
-**Why React and Vite?**
-React's component-based architecture is perfect for building configuring dashboards (FR8). We used Vite as our build tool because it provides an incredibly fast local development server and optimized build process compared to traditional tools like Create React App.
+- Run all tests: `npm run test`
+- Run all tests with coverage: `npm run test -- --coverage`
+- Client tests only: `npm run test:client`
+- Server tests only: `npm run test:server`
 
-**Why Vanilla CSS and a Dark "Glassmorphism" UI? (NFR7, NFR8)**
-To achieve a visual hierarchy with size, color, and spacing, we created our own design primitives (`client/src/index.css`) rather than relying on bloated frameworks. We chose a modern dark aesthetic using "glassmorphism" panels (`var(--panel-bg)` with backdrop-filter) to give the application a premium, trustworthy look. This strictly controls layout placement across pages (NFR8).
+## 9. Troubleshooting
 
-**Data Visualization (FR9, FR10)**
-We utilized `recharts` because it is built natively for React components. It easily takes our fetched data, renders a responsive graph, and immediately re-renders upon state changes when the student filters the data by tool type.
-
-**Dashboard Modules (FR11, FR12, FR13)**
-The dashboard uses CSS Grid to separate concerns logically without clutter. The Usage Graph holds center stage, while the Ethical Guidelines, Training Modules (with an integrated quiz state), and Feedback Insights are housed in identifiable side-panels.
+- Connection refused to MongoDB:
+  - Validate `MONGO_URI` format and credentials.
+  - Confirm MongoDB service/container is running.
+- CORS/API fetch errors in frontend:
+  - Confirm backend is running on `http://localhost:5000`.
+  - Confirm `VITE_API_URL` in `client/.env`.
+- Auth errors after role-based tests:
+  - Log out and log in again to refresh JWT claims.

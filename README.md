@@ -1,16 +1,65 @@
-# AI_Notebook
-A mockup of a full-stack web app built to track safe and ethical use of AI, built as a project for TDT4242: Advanced Software Engineering
+# AI Notebook
 
-## System Dependencies Addressed
+AI Notebook is a small full-stack app for tracking safe and ethical AI usage in a student setting.
 
-In order to support the isolated implementation of the required features (Personalised Dashboard, AI Usage Graphs, Ethical Filtering, Educational Quizzes, and Weekly Feedback), this system explicitly implements and depends on the following foundational elements:
-- **Authentication & User Identity**: Required to guarantee the dashboard personalisations (FR8), historical usage data tracking (FR18/FR19), session timeouts (FR42, FR37), and role-based access control (FR43).
-- **Data Collection/Logging**: Required to power the dashboard metrics, AI usage graphs (FR9), and filter functionality (FR10).
+It includes a React frontend and a Node/Express + MongoDB backend.
 
-> **Note on the Authentication System**: The login/auth boundary is not a mock-up. The project uses JWT-based authentication for protected routes (FR40), token-driven backend authorization, 15-minute inactivity handling (FR42), and end-to-end manual registration (FR38) via `POST /api/auth/register` with NTNU email validation.
+## Documentation Index
 
-## Quick start
+- Setup and environment bootstrapping: `AI_Guidebook_Setup.md`
+- Requirement traceability source: `Traceability_Matrix.md`
+- Server implementation: `server/`
+- Client implementation: `client/`
+- Cross-project test runner: `scripts/run-tests.mjs`
 
-1. Follow the setup guide in `AI_Guidebook_Setup.md` (includes Docker/local/Atlas MongoDB setup).
-2. Start backend from `server`: `npm install` then `npm run dev`
-3. Start frontend from `client`: `npm install` then `npm run dev`
+## Architecture Overview
+
+- Frontend: React + Vite (`client/`)
+- Backend: Node.js + Express (`server/`)
+- Database: MongoDB (`MONGO_URI` in `server/.env`)
+- Authentication: JWT-based auth (`/api/auth/login`, `/api/auth/register`)
+
+## Quick Start
+
+1. Follow `AI_Guidebook_Setup.md` from start to finish.
+2. Start backend from `server/`:
+	- `npm install`
+	- `npm run dev`
+3. Start frontend from `client/`:
+	- `npm install`
+	- `npm run dev`
+4. Open the app at `http://localhost:5173`.
+
+## Quality Gates
+
+Run these from repository root:
+
+- Full automated tests: `npm run test`
+- Full automated tests with coverage: `npm run test -- --coverage`
+- Client only: `npm run test:client`
+- Server only: `npm run test:server`
+
+Current test status:
+
+- Client test suite: passing
+- Server test suite: passing
+
+## Test Data and Roles
+
+Optional seed data can be generated from `server/`:
+
+- `npm run seed`
+
+Seeded accounts:
+
+- `alice` / `password123`
+- `bob` / `password123`
+
+Both are seeded as `student` role.
+
+For role-based system testing (for example admin-only endpoints), register a dedicated admin test user by sending `role: "admin"` in the registration payload.
+
+## Notes
+
+- Keep environment-specific secrets out of version control (`server/.env`, `client/.env`).
+- Use `server/.env.example` and `client/.env.example` as templates.
