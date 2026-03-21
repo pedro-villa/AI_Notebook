@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pivotUsageData, computeStats } from './dashboard';
+import { pivotUsageData, computeStats } from '../../client/src/utils/dashboard';
 
 const mockEntries = [
   { date: '2023-10-01T10:00:00Z', tool: 'ChatGPT', hours: 2 },
@@ -29,6 +29,27 @@ describe('Dashboard Utility Functions (FR9)', () => {
     it('FR9: should handle empty arrays', () => {
       expect(pivotUsageData([])).toEqual([]);
     });
+
+    it('FR9: should aggregate entries that fall on the same day', () => {
+      const entries = [
+        { date: '2023-10-03T08:00:00Z', tool: 'ChatGPT', hours: 1 },
+        { date: '2023-10-03T17:00:00Z', tool: 'ChatGPT', hours: 2 }
+      ];
+
+      const pivoted = pivotUsageData(entries);
+      expect(pivoted).toHaveLength(1);
+      expect(pivoted[0].ChatGPT).toBe(3);
+    });
+
+    it('FR9: should not throw on malformed dates', () => {
+      const malformed = [
+        { date: 'not-a-date', tool: 'ChatGPT', hours: 1 },
+        { date: '2023-10-02T09:00:00Z', tool: 'Claude', hours: 1 }
+      ];
+
+      expect(() => pivotUsageData(malformed)).not.toThrow();
+      expect(Array.isArray(pivotUsageData(malformed))).toBe(true);
+    });
   });
 
   describe('computeStats', () => {
@@ -47,6 +68,18 @@ describe('Dashboard Utility Functions (FR9)', () => {
       expect(stats.avg).toBe(0);
       expect(stats.topTool).toBe('—');
       expect(stats.days).toBe(0);
+    });
+
+    it('FR10 support: should compute averages by unique day count', () => {
+      const stats = computeStats([
+        { date: '2023-10-01T10:00:00Z', tool: 'ChatGPT', hours: 2 },
+        { date: '2023-10-01T12:00:00Z', tool: 'Claude', hours: 2 },
+        { date: '2023-10-02T09:00:00Z', tool: 'ChatGPT', hours: 2 }
+      ]);
+
+      expect(stats.total).toBe('6.0');
+      expect(stats.days).toBe(2);
+      expect(stats.avg).toBe('3.0');
     });
   });
 });

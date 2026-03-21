@@ -1,0 +1,11 @@
+{
+  "name": "ai-guidebook-workspace",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "test": "node scripts/run-tests.mjs",
+    "test:coverage": "node scripts/run-tests.mjs --coverage",
+    "test:client": "npm --prefix client run test",
+    "test:server": "npm --prefix server run test"
+  }
+}

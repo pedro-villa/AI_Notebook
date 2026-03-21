@@ -10,14 +10,14 @@ This matrix maps the explicitly selected Functional Requirements (FRs) and Non-F
 | **FR9** | View AI usage data as a graph. | `Dashboard.jsx` (Recharts integration) | `GET /api/usage` (JWT-scoped `userId` filter) | `api.test.js` (Usage fetch), `dashboard.test.js` (data pivot utilities) |
 | **FR10** | Filter graph data by date or tool. | `Dashboard.jsx`, Filter Bar | `GET /api/usage?tool=&from=&to=` | `api.test.js` (query parameter tests) |
 | **FR11** | Access ethical guidelines on the dashboard. | `Dashboard.jsx`, Guidelines Widget | `GET /api/guidelines` | `api.test.js` (Guidelines fetch) |
-| **FR12** | Educational resources and quiz (80% pass). | `Dashboard.jsx`, ProgressiveQuiz component | `GET /api/resources`, `POST /api/quiz/submit` | `api.test.js` (Quiz passing logic) |
+| **FR12** | Educational resources and quiz (80% pass). | `Dashboard.jsx`, ProgressiveQuiz component | `GET /api/resources`, `POST /api/quiz/submit` | `api.test.js` (resource fetch + quiz pass/fail branches) |
 | **FR13** | Receive feedback via dashboard. | `Dashboard.jsx`, Weekly Insight | `GET /api/feedback` | `api.test.js` (Feedback generation logic) |
 | **FR25** | Explicit consent requested before data collection. | `Dashboard.jsx` (Consent Modal), localStorage | Dashboard API calls are gated client-side until consent | Verified manually via UI flow. |
-| **FR38** | Register account using university email. | `Register.jsx` | `POST /api/auth/register` (NTNU email validation + user creation) | `auth.test.js` (registration + email policy tests) |
+| **FR38** | Register account using university email. | `Register.jsx` | `POST /api/auth/register` (NTNU email validation + user creation) | `auth.test.js` (registration + email policy + conflict tests) |
 | **FR40** | Log in to access the application. | `Login.jsx`, `AuthContext.jsx`, `ProtectedRoute.jsx` | `POST /api/auth/login` | `auth.test.js` (login token issuance) |
 | **FR41** | Multi-factor authentication support. | `Register.jsx` (MFA-style step) | No production MFA backend verification layer | *Future implementation scope/MFA stub trace* |
 | **FR42** | Automatic logout after 15 mins inactivity. | `AuthContext.jsx`, `AppLayout.jsx` (shared inactivity warning) | Backend JWT `expiresIn` | Tested manually via browser idle simulation. |
-| **FR43** | Categorized users (base vs. authorized personnel). | `User.js` (role schema), `ProtectedRoute.jsx`, `AppLayout.jsx` | `authMiddleware` + `requireRole` middleware (`/api/admin/system-status`) | `api.test.js` (RBAC allow/deny route tests); current role model is `student`/`admin` (partial vs full role taxonomy) |
+| **FR43** | Categorized users (base vs. authorized personnel). | `User.js` (role schema), `ProtectedRoute.jsx`, `AppLayout.jsx` | `authMiddleware` + `requireRole` middleware (`/api/admin/system-status`) | `api.test.js` + `middleware.test.js` (RBAC allow/deny + missing/invalid token branches); current role model is `student`/`admin` (partial vs full role taxonomy) |
 | **NFR6** | 95% UI Consistency Score. | `index.css`, `AppLayout.jsx`, shared panel/grid classes | N/A | Verified via explicit checklist and manual scoring rubric (below). |
 | **NFR7** | Visual hierarchy (size, colour, spacing). | Custom CSS variables (`var(--accent-color)`, etc.) | N/A | Verified via design review. |
 | **NFR8** | Predictable placement across pages. | `AppLayout.jsx` (Sidebar navigation) | N/A | Verified via component routing structure. |
@@ -25,9 +25,10 @@ This matrix maps the explicitly selected Functional Requirements (FRs) and Non-F
 ## Validation Implementation
 
 The validation loop is enforced through automated testing suites:
-1. **Frontend Tests**: (`client/src/utils/dashboard.test.js`) Verifies that the client-side data transformations correctly pivot data for graphical representation (FR9).
-2. **Backend API Tests**: (`server/tests/api.test.js`) Validates endpoints fetching usage statistics (FR9, FR10), returning guidelines and resources (FR11, FR12), evaluating quiz responses (FR12), and generating feedback insights (FR13).
-3. **Backend Auth Tests**: (`server/tests/auth.test.js`) Validates FR38 registration success, NTNU email policy rejection, and FR40 login token issuance.
+1. **Frontend Tests**: (`tests/client/dashboard.test.js`) Verifies that the client-side data transformations correctly pivot data for graphical representation (FR9).
+2. **Backend API Tests**: (`tests/server/api.test.js`) Validates endpoints fetching usage statistics (FR9, FR10), returning guidelines and resources (FR11, FR12), evaluating quiz pass/fail responses (FR12), dashboard config update (FR8), and generating feedback insights (FR13).
+3. **Backend Auth Tests**: (`tests/server/auth.test.js`) Validates FR38 registration success, NTNU email policy rejection, registration conflict handling, and FR40 login token issuance/invalid-password rejection.
+4. **Backend Middleware Tests**: (`tests/server/middleware.test.js`) Validates JWT header checks, invalid token rejection, and role-based authorization branches supporting FR40/FR43.
 
 ## NFR6 Manual Scoring Rubric (95% target)
 

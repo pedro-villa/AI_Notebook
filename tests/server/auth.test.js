@@ -2,8 +2,8 @@ import { jest } from '@jest/globals';
 import request from 'supertest';
 import express from 'express';
 import bcrypt from 'bcryptjs';
-import authRoutes from '../routes/auth.js';
-import User from '../models/User.js';
+import authRoutes from '../../server/routes/auth.js';
+import User from '../../server/models/User.js';
 
 const app = express();
 app.use(express.json());
@@ -52,6 +52,21 @@ describe('Auth Endpoints (FR38, FR40)', () => {
     expect(res.body.error).toContain('NTNU');
   });
 
+  it('FR38: Should reject registration when username or email already exists', async () => {
+    User.findOne = jest.fn().mockResolvedValue({ _id: 'existing-user' });
+
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({
+        username: 'newstudent',
+        email: 'newstudent@ntnu.no',
+        password: 'password123'
+      });
+
+    expect(res.statusCode).toEqual(409);
+    expect(res.body.error).toContain('already in use');
+  });
+
   it('FR40: Should log in an existing user and return a token', async () => {
     const passwordHash = await bcrypt.hash('password123', 10);
     User.findOne = jest.fn().mockResolvedValue({
@@ -78,5 +93,32 @@ describe('Auth Endpoints (FR38, FR40)', () => {
     expect(res.statusCode).toEqual(200);
     expect(res.body).toHaveProperty('token');
     expect(res.body).toHaveProperty('user');
+  });
+
+  it('FR40: Should reject login with invalid password', async () => {
+    const passwordHash = await bcrypt.hash('password123', 10);
+    User.findOne = jest.fn().mockResolvedValue({
+      _id: '507f191e810c19729de860ea',
+      username: 'existinguser',
+      email: 'existinguser@ntnu.no',
+      role: 'student',
+      dashboardConfig: {
+        showGraph: true,
+        showGuidelines: true,
+        showResources: true,
+        showFeedback: true,
+      },
+      passwordHash,
+    });
+
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({
+        username: 'existinguser',
+        password: 'wrongpassword'
+      });
+
+    expect(res.statusCode).toEqual(401);
+    expect(res.body.error).toContain('Invalid credentials');
   });
 });
